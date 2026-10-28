@@ -1,0 +1,100 @@
+@page "/account/login"
+@attribute [AllowAnonymous]
+@attribute [ExcludeFromInteractiveRouting]
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Authentication.Cookies
+@inject IAuthApiClient Auth
+@inject NavigationManager Nav
+@inject ILogger<Login> Logger
+
+<PageTitle>Sign in · HexCatalog</PageTitle>
+
+<div class="card shadow-sm card-narrow">
+    <div class="card-body p-4">
+        <h1 class="h4 mb-3">Sign in</h1>
+
+        @if (error is not null)
+        {
+            <div class="alert alert-danger py-2" role="alert">@error</div>
+        }
+
+        <EditForm Model="Input" method="post" OnValidSubmit="SignInAsync" FormName="login">
+            <DataAnnotationsValidator />
+            <div class="mb-3">
+                <label class="form-label" for="login-username">Username</label>
+                <InputText id="login-username" class="form-control" @bind-Value="Input.Username" autocomplete="username" autofocus />
+                <ValidationMessage For="() => Input.Username" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label" for="login-password">Password</label>
+                <InputText id="login-password" type="password" class="form-control" @bind-Value="Input.Password" autocomplete="current-password" />
+                <ValidationMessage For="() => Input.Password" />
+            </div>
+            <div class="form-check mb-3">
+                <InputCheckbox id="login-remember" class="form-check-input" @bind-Value="Input.RememberMe" />
+                <label class="form-check-label" for="login-remember">Keep me signed in on this device</label>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Sign in</button>
+        </EditForm>
+
+        <p class="text-center small mt-3 mb-0">
+            No account yet? <a href="account/register">Create one</a>
+        </p>
+    </div>
+</div>
+
+@code {
+    [CascadingParameter] private HttpContext HttpContext { get; set; } = default!;
+    [SupplyParameterFromForm] private LoginInput Input { get; set; } = new();
+    [SupplyParameterFromQuery] private string? ReturnUrl { get; set; }
+
+    private string? error;
+
+    private async Task SignInAsync()
+    {
+        AuthResponse? auth;
+        try
+        {
+            auth = await Auth.LoginAsync(new LoginRequest(Input.Username, Input.Password), HttpContext.RequestAborted);
+        }
+        catch (ApiException ex)
+        {
+            error = ex.Describe();
+            return;
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogError(ex, "Catalog API is unreachable");
+            error = "The catalog API isn't reachable right now. Try again in a moment.";
+            return;
+        }
+
+        if (auth is null)
+        {
+            error = "Wrong username or password.";
+            return;
+        }
+
+        await HttpContext.SignInAsync(
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            SessionClaims.CreatePrincipal(auth),
+            new AuthenticationProperties { IsPersistent = Input.RememberMe, ExpiresUtc = auth.ExpiresAt });
+
+        Nav.NavigateTo(SafeReturnUrl(auth.Role));
+    }
+
+    private string SafeReturnUrl(string role)
+    {
+        if (!string.IsNullOrEmpty(ReturnUrl) && Uri.IsWellFormedUriString(ReturnUrl, UriKind.Relative)
+            && !ReturnUrl.StartsWith("//") && !ReturnUrl.StartsWith("/\\"))
+            return ReturnUrl.TrimStart('/');
+        return role is "Admin" or "User" ? "products" : "";
+    }
+
+    private sealed class LoginInput
+    {
+        [Required] public string Username { get; set; } = "";
+        [Required] public string Password { get; set; } = "";
+        public bool RememberMe { get; set; }
+    }
+}

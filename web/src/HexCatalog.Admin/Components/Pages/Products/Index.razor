@@ -1,0 +1,136 @@
+@page "/products"
+@attribute [Authorize(Roles = "Admin,User")]
+@inherits ApiComponentBase
+@inject IProductService Products
+
+<PageTitle>Products · HexCatalog</PageTitle>
+
+<div class="page-title">
+    <h1>Products</h1>
+    <AuthorizeView Roles="Admin">
+        <a href="products/new" class="btn btn-success">New product</a>
+    </AuthorizeView>
+</div>
+
+<form class="d-flex gap-2 mb-3" @onsubmit="SearchAsync" role="search">
+    <input class="form-control" placeholder="Search by name or category" aria-label="Search" @bind="query" />
+    <button class="btn btn-primary" type="submit">Search</button>
+    @if (!string.IsNullOrEmpty(activeQuery))
+    {
+        <button class="btn btn-outline-secondary" type="button" @onclick="ClearAsync">Clear</button>
+    }
+</form>
+
+@if (Error is not null)
+{
+    <div class="alert alert-danger">@Error</div>
+}
+
+@if (result is null)
+{
+    <p class="text-muted">Loading products…</p>
+}
+else if (result.Total == 0)
+{
+    <div class="alert alert-info">
+        @(string.IsNullOrEmpty(activeQuery) ? "The catalog is empty." : $"No products match \"{activeQuery}\".")
+    </div>
+}
+else
+{
+    <div class="table-responsive bg-white rounded shadow-sm">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Name</th>
+                    <th>Category</th>
+                    <th class="text-end">Price</th>
+                    <th class="text-end">Stock</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var p in result.Items)
+                {
+                    <tr>
+                        <td><a href="products/@p.Id">@p.Name</a></td>
+                        <td><span class="badge text-bg-secondary">@p.Category</span></td>
+                        <td class="text-end">@p.Price.ToString("C", Money.Culture)</td>
+                        <td class="text-end @(p.Stock == 0 ? "text-danger fw-semibold" : "")">@p.Stock</td>
+                        <td class="text-end text-nowrap">
+                            <button class="btn btn-sm btn-outline-primary" @onclick="() => reserving = p" disabled="@(p.Stock == 0)">Reserve</button>
+                            <AuthorizeView Roles="Admin">
+                                <a href="products/@p.Id/edit" class="btn btn-sm btn-outline-secondary">Edit</a>
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => deleting = p">Delete</button>
+                            </AuthorizeView>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mt-3">
+        <span class="text-muted small">@result.Total product(s)</span>
+        <Pager Page="page" TotalPages="result.TotalPages" PageChanged="GoToPageAsync" />
+    </div>
+}
+
+<ConfirmDialog Visible="deleting is not null" Busy="Busy" Title="Delete product" ConfirmText="Delete"
+               OnConfirm="DeleteAsync" OnCancel="() => deleting = null">
+    <strong>@deleting?.Name</strong> will be removed from the catalog.
+</ConfirmDialog>
+
+<ReserveDialog Product="reserving" OnReserved="OnReservedAsync" OnClose="() => reserving = null" />
+
+@code {
+    private const int PageSize = 20;
+
+    private Page<Product>? result;
+    private string? query;
+    private string? activeQuery;
+    private int page = 1;
+    private Product? deleting;
+    private Product? reserving;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private Task LoadAsync() => RunAsync(async () => result = await Products.SearchAsync(activeQuery, page, PageSize));
+
+    private Task SearchAsync()
+    {
+        activeQuery = query?.Trim();
+        page = 1;
+        return LoadAsync();
+    }
+
+    private Task ClearAsync()
+    {
+        query = activeQuery = null;
+        page = 1;
+        return LoadAsync();
+    }
+
+    private Task GoToPageAsync(int target)
+    {
+        page = target;
+        return LoadAsync();
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (await RunAsync(() => Products.DeleteAsync(deleting!.Id)))
+        {
+            deleting = null;
+            if (result is { Items.Count: 1 } && page > 1)
+                page--;
+            await LoadAsync();
+        }
+    }
+
+    private async Task OnReservedAsync(Product updated)
+    {
+        reserving = null;
+        await LoadAsync();
+    }
+}

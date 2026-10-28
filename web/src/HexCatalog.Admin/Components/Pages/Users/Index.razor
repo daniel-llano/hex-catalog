@@ -1,0 +1,109 @@
+@page "/users"
+@attribute [Authorize(Roles = "Admin")]
+@inherits ApiComponentBase
+@inject IUserApiClient UsersApi
+
+<PageTitle>Users · HexCatalog</PageTitle>
+
+<div class="page-title">
+    <h1>Users</h1>
+</div>
+
+<p class="text-muted">New accounts start as <strong>Viewer</strong> and can't see the catalog until you change their role.</p>
+
+@if (Error is not null)
+{
+    <div class="alert alert-danger">@Error</div>
+}
+@if (notice is not null)
+{
+    <div class="alert alert-success">@notice</div>
+}
+
+@if (users is null)
+{
+    <p class="text-muted">Loading users…</p>
+}
+else
+{
+    <div class="table-responsive bg-white rounded shadow-sm">
+        <table class="table align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Username</th>
+                    <th>Role</th>
+                    <th>Joined</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var u in users)
+                {
+                    var isSelf = u.Username == currentUser;
+                    <tr>
+                        <td>@u.Username @if (isSelf) { <span class="badge text-bg-info ms-1">you</span> }</td>
+                        <td style="max-width: 11rem;">
+                            <select class="form-select form-select-sm" value="@u.Role" disabled="@(isSelf || Busy)"
+                                    aria-label="Role for @u.Username"
+                                    @onchange="e => ChangeRoleAsync(u, e.Value?.ToString())">
+                                @foreach (var role in Roles)
+                                {
+                                    <option value="@role">@role</option>
+                                }
+                            </select>
+                        </td>
+                        <td>@u.CreatedAt.ToString("yyyy-MM-dd")</td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-outline-danger" disabled="@isSelf" @onclick="() => deleting = u">Delete</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+<ConfirmDialog Visible="deleting is not null" Busy="Busy" Title="Delete user" ConfirmText="Delete"
+               OnConfirm="DeleteAsync" OnCancel="() => deleting = null">
+    <strong>@deleting?.Username</strong> will lose access right away.
+</ConfirmDialog>
+
+@code {
+    private static readonly string[] Roles = ["Admin", "User", "Viewer"];
+
+    [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    private List<UserDto>? users;
+    private UserDto? deleting;
+    private string? currentUser;
+    private string? notice;
+
+    protected override async Task OnInitializedAsync()
+    {
+        currentUser = (await AuthState).User.Identity?.Name;
+        await LoadAsync();
+    }
+
+    private Task LoadAsync() => RunAsync(async () => users = (await UsersApi.GetAllAsync()).ToList());
+
+    private async Task ChangeRoleAsync(UserDto user, string? role)
+    {
+        if (role is null || role == user.Role) return;
+        notice = null;
+        if (await RunAsync(() => UsersApi.ChangeRoleAsync(user.Id, role)))
+            notice = $"{user.Username} is now {role}.";
+        await LoadAsync();
+    }
+
+    private async Task DeleteAsync()
+    {
+        notice = null;
+        var name = deleting!.Username;
+        if (await RunAsync(() => UsersApi.DeleteAsync(deleting.Id)))
+        {
+            deleting = null;
+            notice = $"{name} was deleted.";
+            await LoadAsync();
+        }
+    }
+}

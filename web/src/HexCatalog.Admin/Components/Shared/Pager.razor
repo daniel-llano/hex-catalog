@@ -1,0 +1,22 @@
+@if (TotalPages > 1)
+{
+    <nav aria-label="Pages">
+        <ul class="pagination pagination-sm mb-0">
+            <li class="page-item @(Page <= 1 ? "disabled" : "")">
+                <button class="page-link" @onclick="() => Go(Page - 1)" disabled="@(Page <= 1)">Previous</button>
+            </li>
+            <li class="page-item disabled"><span class="page-link">Page @Page of @TotalPages</span></li>
+            <li class="page-item @(Page >= TotalPages ? "disabled" : "")">
+                <button class="page-link" @onclick="() => Go(Page + 1)" disabled="@(Page >= TotalPages)">Next</button>
+            </li>
+        </ul>
+    </nav>
+}
+
+@code {
+    [Parameter, EditorRequired] public int Page { get; set; }
+    [Parameter, EditorRequired] public int TotalPages { get; set; }
+    [Parameter] public EventCallback<int> PageChanged { get; set; }
+
+    private Task Go(int page) => PageChanged.InvokeAsync(Math.Clamp(page, 1, Math.Max(1, TotalPages)));
+}

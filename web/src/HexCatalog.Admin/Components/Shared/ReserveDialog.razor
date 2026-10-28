@@ -1,0 +1,47 @@
+@inherits ApiComponentBase
+@inject IProductService Products
+
+@if (Product is not null)
+{
+    <div class="modal-backdrop-custom" role="dialog" aria-modal="true" aria-labelledby="reserve-title">
+        <div class="card shadow" style="max-width: 26rem; width: 100%;">
+            <div class="card-body">
+                <h2 id="reserve-title" class="h5">Reserve @Product.Name</h2>
+                <p class="text-muted small mb-2">@Product.Stock in stock.</p>
+                @if (Error is not null)
+                {
+                    <div class="alert alert-danger py-2">@Error</div>
+                }
+                <label class="form-label" for="reserve-qty">Quantity</label>
+                <input id="reserve-qty" type="number" class="form-control mb-3" min="1" max="@Product.Stock" @bind="quantity" />
+                <div class="d-flex justify-content-end gap-2">
+                    <button class="btn btn-outline-secondary" @onclick="Close" disabled="@Busy">Cancel</button>
+                    <button class="btn btn-primary" @onclick="ReserveAsync" disabled="@(Busy || quantity < 1)">Reserve</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public Product? Product { get; set; }
+    [Parameter] public EventCallback<Product> OnReserved { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private int quantity = 1;
+
+    protected override void OnParametersSet()
+    {
+        quantity = 1;
+        Error = null;
+    }
+
+    private async Task ReserveAsync()
+    {
+        Product? updated = null;
+        if (await RunAsync(async () => updated = await Products.ReserveAsync(Product!.Id, quantity)))
+            await OnReserved.InvokeAsync(updated!);
+    }
+
+    private Task Close() => OnClose.InvokeAsync();
+}

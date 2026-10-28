@@ -1,0 +1,13 @@
+**/bin/
+**/obj/
+**/.vs/
+**/.vscode/
+**/.idea/
+**/TestResults/
+**/node_modules/
+.git/
+.github/
+docs/
+e2e/
+playwright-report/
+test-results/

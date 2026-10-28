@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/HexCatalog.Api/HexCatalog.Api.csproj" />
+    <Project Path="src/HexCatalog.Application/HexCatalog.Application.csproj" />
+    <Project Path="src/HexCatalog.Domain/HexCatalog.Domain.csproj" />
+    <Project Path="src/HexCatalog.Infrastructure/HexCatalog.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/HexCatalog.IntegrationTests/HexCatalog.IntegrationTests.csproj" />
+    <Project Path="tests/HexCatalog.UnitTests/HexCatalog.UnitTests.csproj" />
+  </Folder>
+</Solution>

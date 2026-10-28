@@ -1,0 +1,77 @@
+# Local stack: SQL Server, the API on :5090, and the admin UI on :5152.
+# Passwords and the signing key here are for this machine only.
+name: hex-catalog
+
+x-http-health: &http-health
+  interval: 5s
+  timeout: 3s
+  retries: 40
+  start_period: 20s
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: hexcatalog-sql
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "HexCatalog_Local_Passw0rd!"
+    ports:
+      - "1433:1433"
+    volumes:
+      - sql_data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/127.0.0.1/1433' || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 20s
+
+  api:
+    build:
+      context: ..
+      dockerfile: api/Dockerfile
+    container_name: hexcatalog-api
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    ports:
+      - "5090:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ApplyMigrationsOnStartup: "true"
+      SeedSampleData: "true"
+      EnableSwagger: "true"
+      ConnectionStrings__DefaultConnection: "Server=sqlserver,1433;Database=HexCatalog;User Id=sa;Password=HexCatalog_Local_Passw0rd!;TrustServerCertificate=True;"
+      Jwt__Secret: "local-compose-signing-key-replace-before-deploying"
+      Jwt__AccessTokenMinutes: "480"
+      Bootstrap__AdminUsername: catalogadmin
+      Bootstrap__AdminPassword: Admin@1234
+      Cors__Origins__0: "http://localhost:5152"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /health/ready HTTP/1.0\r\n\r\n' >&3 && grep -q ' 200 ' <&3"]
+      <<: *http-health
+
+  admin:
+    build:
+      context: ..
+      dockerfile: web/Dockerfile
+    container_name: hexcatalog-admin
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "5152:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ApiSettings__BaseUrl: "http://api:8080/"
+    volumes:
+      - admin_keys:/home/app/.aspnet/DataProtection-Keys
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /health HTTP/1.0\r\n\r\n' >&3 && grep -q ' 200 ' <&3"]
+      <<: *http-health
+
+volumes:
+  sql_data:
+  admin_keys:

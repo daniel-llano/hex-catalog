@@ -1,0 +1,11 @@
+<AuthorizeView Roles="Viewer">
+    <Authorized>
+        <div class="alert alert-warning">
+            <strong>Your account is waiting for approval.</strong>
+            An admin has to give @context.User.Identity?.Name the User or Admin role before you can see the catalog.
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <div class="alert alert-danger">You don't have permission to open this page.</div>
+    </NotAuthorized>
+</AuthorizeView>

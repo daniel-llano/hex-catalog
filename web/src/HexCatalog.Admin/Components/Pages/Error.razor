@@ -1,0 +1,21 @@
+@page "/error"
+@attribute [AllowAnonymous]
+@using System.Diagnostics
+
+<PageTitle>Error · HexCatalog</PageTitle>
+
+<h1 class="h3 text-danger">Something went wrong</h1>
+<p>The request couldn't be completed. Try again, and if it keeps happening, share the request ID below with an admin.</p>
+@if (!string.IsNullOrEmpty(requestId))
+{
+    <p class="small text-muted">Request ID: <code>@requestId</code></p>
+}
+
+@code {
+    [CascadingParameter] private HttpContext? HttpContext { get; set; }
+
+    private string? requestId;
+
+    protected override void OnInitialized() =>
+        requestId = Activity.Current?.Id ?? HttpContext?.TraceIdentifier;
+}

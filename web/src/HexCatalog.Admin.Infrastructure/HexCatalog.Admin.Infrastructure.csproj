@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\HexCatalog.Admin.Domain\HexCatalog.Admin.Domain.csproj" />
+    <ProjectReference Include="..\HexCatalog.Admin.Application\HexCatalog.Admin.Application.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+</Project>

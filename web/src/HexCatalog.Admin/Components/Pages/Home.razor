@@ -1,0 +1,46 @@
+@page "/"
+@attribute [AllowAnonymous]
+
+<PageTitle>HexCatalog</PageTitle>
+
+<h1 class="h3 mb-3">HexCatalog admin</h1>
+
+<AuthorizeView>
+    <NotAuthorized>
+        <p class="lead">Manage products, stock, and who can see them.</p>
+        <div class="d-flex gap-2">
+            <a href="account/login" class="btn btn-primary">Sign in</a>
+            <a href="account/register" class="btn btn-outline-secondary">Create account</a>
+        </div>
+    </NotAuthorized>
+    <Authorized>
+        <AuthorizeView Roles="Admin,User" Context="roleContext">
+            <Authorized>
+                <p>Signed in as <strong>@context.User.Identity?.Name</strong>.</p>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <a class="card h-100 text-decoration-none" href="products">
+                            <div class="card-body">
+                                <h2 class="h5">Products</h2>
+                                <p class="text-muted mb-0">Search the catalog and reserve stock.</p>
+                            </div>
+                        </a>
+                    </div>
+                    <AuthorizeView Roles="Admin" Context="adminContext">
+                        <div class="col-md-6">
+                            <a class="card h-100 text-decoration-none" href="users">
+                                <div class="card-body">
+                                    <h2 class="h5">Users</h2>
+                                    <p class="text-muted mb-0">Approve new accounts and manage roles.</p>
+                                </div>
+                            </a>
+                        </div>
+                    </AuthorizeView>
+                </div>
+            </Authorized>
+            <NotAuthorized>
+                <AccessDeniedNotice />
+            </NotAuthorized>
+        </AuthorizeView>
+    </Authorized>
+</AuthorizeView>

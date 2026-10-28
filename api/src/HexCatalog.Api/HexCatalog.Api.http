@@ -1,0 +1,23 @@
+@host = http://localhost:5090
+
+# @name login
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{ "username": "catalogadmin", "password": "Admin@1234" }
+
+###
+@token = {{login.response.body.accessToken}}
+
+GET {{host}}/api/products?q=desk&page=1&pageSize=20
+Authorization: Bearer {{token}}
+
+###
+POST {{host}}/api/products
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "name": "Cable Tray", "description": "Under-desk cable management tray.", "price": 24.5, "category": "Furniture", "stock": 40 }
+
+###
+GET {{host}}/health/ready

@@ -1,0 +1,79 @@
+@page "/products/{Id:guid}"
+@attribute [Authorize(Roles = "Admin,User")]
+@inherits ApiComponentBase
+@inject IProductService Products
+
+<PageTitle>@(product?.Name ?? "Product") · HexCatalog</PageTitle>
+
+@if (Error is not null)
+{
+    <div class="alert alert-danger">@Error</div>
+}
+
+@if (loading)
+{
+    <p class="text-muted">Loading…</p>
+}
+else if (product is null)
+{
+    <h1 class="h3">Product not found</h1>
+    <p>It may have been deleted. <a href="products">Back to products</a></p>
+}
+else
+{
+    <div class="page-title">
+        <h1>@product.Name</h1>
+        <div class="d-flex gap-2">
+            <button class="btn btn-primary" @onclick="() => reserving = product" disabled="@(product.Stock == 0)">Reserve stock</button>
+            <AuthorizeView Roles="Admin">
+                <a href="products/@product.Id/edit" class="btn btn-outline-secondary">Edit</a>
+            </AuthorizeView>
+        </div>
+    </div>
+
+    <div class="card shadow-sm" style="max-width: 40rem;">
+        <div class="card-body">
+            <p>@product.Description</p>
+            <dl class="row mb-0">
+                <dt class="col-sm-4">Category</dt>
+                <dd class="col-sm-8">@product.Category</dd>
+                <dt class="col-sm-4">Price</dt>
+                <dd class="col-sm-8">@product.Price.ToString("C", Money.Culture)</dd>
+                <dt class="col-sm-4">In stock</dt>
+                <dd class="col-sm-8">@product.Stock</dd>
+                <dt class="col-sm-4">Created</dt>
+                <dd class="col-sm-8">@product.CreatedAt.ToString("yyyy-MM-dd HH:mm") UTC</dd>
+                @if (product.UpdatedAt is { } updated)
+                {
+                    <dt class="col-sm-4">Last updated</dt>
+                    <dd class="col-sm-8">@updated.ToString("yyyy-MM-dd HH:mm") UTC</dd>
+                }
+            </dl>
+        </div>
+    </div>
+
+    <a href="products" class="d-inline-block mt-3">Back to products</a>
+}
+
+<ReserveDialog Product="reserving" OnReserved="OnReserved" OnClose="() => reserving = null" />
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private Product? product;
+    private Product? reserving;
+    private bool loading = true;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        loading = true;
+        await RunAsync(async () => product = await Products.GetByIdAsync(Id));
+        loading = false;
+    }
+
+    private void OnReserved(Product updated)
+    {
+        product = updated;
+        reserving = null;
+    }
+}

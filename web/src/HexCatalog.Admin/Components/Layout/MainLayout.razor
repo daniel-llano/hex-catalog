@@ -1,0 +1,43 @@
+@inherits LayoutComponentBase
+@inject NavigationManager Nav
+
+<header class="app-header">
+    <nav class="container d-flex flex-wrap align-items-center gap-3 py-2">
+        <a class="brand" href="">HexCatalog</a>
+
+        <AuthorizeView Roles="Admin,User">
+            <NavLink class="nav-link" href="products">Products</NavLink>
+        </AuthorizeView>
+        <AuthorizeView Roles="Admin">
+            <NavLink class="nav-link" href="users">Users</NavLink>
+        </AuthorizeView>
+
+        <div class="ms-auto d-flex align-items-center gap-2">
+            <AuthorizeView>
+                <Authorized>
+                    <span class="small text-white-50">
+                        @context.User.Identity?.Name
+                        <span class="badge text-bg-light ms-1">@RoleOf(context)</span>
+                    </span>
+                    <form action="account/logout" method="post" class="m-0">
+                        <AntiforgeryToken />
+                        <button type="submit" class="btn btn-sm btn-outline-light">Sign out</button>
+                    </form>
+                </Authorized>
+                <NotAuthorized>
+                    <a class="btn btn-sm btn-light" href="account/login">Sign in</a>
+                    <a class="btn btn-sm btn-outline-light" href="account/register">Create account</a>
+                </NotAuthorized>
+            </AuthorizeView>
+        </div>
+    </nav>
+</header>
+
+<main class="container py-4">
+    @Body
+</main>
+
+@code {
+    private static string RoleOf(AuthenticationState state) =>
+        state.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "";
+}
